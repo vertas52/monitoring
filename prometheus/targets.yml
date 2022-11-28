@@ -1,0 +1,19 @@
+# This is example of how static targets can be defined
+# without modifying prometheus.yml config each time
+# we need to add new node.
+# Just add the following to prometheus.yml:
+# - job_name: 'targets_from_file'
+#   file_sd_configs:
+#      - files:
+#          - 'targets.yml'
+#        refresh_interval: 30s
+# and prometheus will automatically re-read this
+# file after 30 seconds
+- targets:
+    - "openvino-ci.intel.com"
+  labels:
+    service: jenkins
+    group: infra
+    # special label to make prometheus scrape metrics from
+    # custom endpoint (default: /metrics)
+    __metrics_path__: "/prometheus"

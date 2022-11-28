@@ -1,0 +1,8 @@
+- targets:
+    # will be filled by ansible
+    - nnlvdp-mon01.inn.intel.com:9100
+    - nnlvdp-mon02.inn.intel.com:9101
+    - nnlvdp-jenkins01.inn.intel.com:9100
+    - nnlvdp-shared01.inn.intel.com:9100
+    - nnlvdp-k8s-master.inn.intel.com:9100
+    - nnlvdp-jenkins02.inn.intel.com:9100

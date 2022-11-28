@@ -1,0 +1,2 @@
+# record rules allow to pre-compute a query and make it available as a separate set of time series data
+# See also: https://prometheus.io/docs/prometheus/latest/configuration/recording_rules/#recording-rules

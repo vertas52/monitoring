@@ -1,0 +1,3 @@
+- targets:
+    # will be filled by ansible
+    - nnlvdp-shared01.inn.intel.com:9101

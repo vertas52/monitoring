@@ -1,0 +1,121 @@
+global:
+  # defaults
+  scrape_interval:     45s
+  # how often to evaluate rules
+  evaluation_interval: 1m
+  scrape_timeout:      30s
+
+# Load and evaluate rules in this file every 'evaluation_interval' seconds.
+rule_files:
+  - "alert.rules"
+  - "recording.rules"
+
+# A scrape configuration containing exactly one endpoint to scrape.
+scrape_configs:
+  - job_name: 'prometheus'
+    scrape_interval: 1m
+    static_configs:
+      - targets: ['localhost:9090']
+
+  - job_name: 'infra'
+    file_sd_configs:
+      - files:
+          - 'infra.yml'
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.*):.*'
+        target_label: node
+        replacement: '${1}'
+
+  # a separate file for ipmi monitoring
+  - job_name: 'ipmi-mon'
+    file_sd_configs:
+      - files:
+          - 'ipmi-mon.yml'
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.*):.*'
+        target_label: node
+        replacement: '${1}'
+
+  # a separate file into which we'll dynamically add
+  # hosts via ansible
+  - job_name: 'nodes'
+    file_sd_configs:
+      - files:
+          - 'nodes.yml'
+        refresh_interval: 30s
+    relabel_configs:
+      - source_labels: [__address__]
+        regex: '(.*):.*'
+        target_label: node
+        replacement: '${1}'
+
+  - job_name: jenkins_servers
+    tls_config:
+      insecure_skip_verify: true
+    metrics_path: '/prometheus'
+    scrape_interval: 1m
+    static_configs:
+      - targets:
+          - openvino-ci.intel.com
+          - openvino-qa.intel.com
+
+  - job_name: critical_services
+    metrics_path: /probe
+    params:
+      module: [http_2xx]  # Look for a HTTP 200 response.
+    static_configs:
+      - targets:
+          - https://gitlab-icv.inn.intel.com
+          - https://nncv-harbor.inn.intel.com
+          - https://gitlab-onezoo.inn.intel.com
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115  # The blackbox exporter's real hostname:port.
+
+  - job_name: monitoring_endpoints
+    metrics_path: /probe
+    params:
+      module: [http_2xx]  # Look for a HTTP 200 response.
+    static_configs:
+      - targets:
+          - http://grafana.ovino-mon.intel.com
+          - http://alertmanager.ovino-mon.intel.com
+          - http://prometheus.ovino-mon.intel.com
+          - https://nnlvdp-mon01.inn.intel.com/graylog/
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115  # The blackbox exporter's real hostname:port.
+
+  - job_name: internal_services
+    metrics_path: /probe
+    params:
+      module: [http_2xx]  # Look for a HTTP 200 response.
+    static_configs:
+      - targets:
+          - http://nnlvdp-elk1.inn.intel.com:8080/
+    relabel_configs:
+      - source_labels: [__address__]
+        target_label: __param_target
+      - source_labels: [__param_target]
+        target_label: instance
+      - target_label: __address__
+        replacement: localhost:9115  # The blackbox exporter's real hostname:port.
+
+alerting:
+  alertmanagers:
+  - scheme: http
+    static_configs:
+    - targets:
+      - 'localhost:9093'

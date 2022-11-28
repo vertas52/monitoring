@@ -1,0 +1,118 @@
+groups:
+- name: watchdog
+  rules:
+  - alert: Watchdog
+    expr: vector(1)
+    labels:
+      severity: none
+    annotations:
+      message: |
+        This is an alert meant to ensure that the entire alerting pipeline is functional.
+        This alert is always firing, therefore it should always be firing in Alertmanager
+        and always fire against a receiver. There are integrations with various notification
+        mechanisms that send a notification when this alert is not firing. For example the
+        "DeadMansSnitch" integration in PagerDuty.
+
+- name: probes
+  rules:
+  - alert: CriticalEndpointUnavailable
+    expr: probe_success{job="critical_services"} == 0
+    for: 5m
+    labels:
+      severity: page
+    annotations:
+      message: Critical service's endpoint unavailable for 5 minutes - {{ $labels.instance }}
+
+  - alert: EndpointUnavailable
+    expr: probe_success == 0
+    for: 10m
+    labels:
+      severity: warning
+    annotations:
+      summary: Service's endpoint unavailable for 5 minutes - {{ $labels.instance }}
+
+- name: jenkins
+  rules:
+  - alert: JenkinsHighJVMThreadsCount
+    expr: vm_count > 20000
+    for: 1m
+    labels:
+      severity: page
+    annotations:
+      message: JVM threads count on Jenkins instance {{ $labels.instance }} is higher than 20k
+
+  - alert: JenkinsIsDown
+    expr: up{job="jenkins_servers"} == 0
+    for: 5m
+    labels:
+      severity: page
+    annotations:
+      message: Jenkins instance {{ $labels.instance }} is DOWN
+
+- name: nodes
+  rules:
+    - alert: InfraNodeIsDown
+      expr: up{job="infra"} == 0
+      for: 5m
+      labels:
+        severity: page
+      annotations:
+        message: "Infrastructure node is down {{ $labels.instance }}"
+
+    - alert: NodeIsDown
+      expr: up{job="nodes"} == 0
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        message: "Node is down {{ $labels.instance }}"
+
+    - alert: InfraNodeFilesystemSpaceFillingUp
+      expr: (node_filesystem_avail_bytes{fstype!="",job="infra"}
+        / node_filesystem_size_bytes{fstype!="",job="infra"} * 100
+        < 15 and predict_linear(node_filesystem_avail_bytes{fstype!="",job="infra"}[6h],
+        8 * 60 * 60) < 0 and node_filesystem_readonly{fstype!="",job="infra"}
+        == 0)
+      for: 1h
+      labels:
+        severity: page
+      annotations:
+        description: Filesystem on {{ $labels.device }} at {{ $labels.instance }} has only
+          {{ printf "%.2f" $value }}% available space left and is filling up fast.
+        message: "Infrastructure node filesystem is predicted to run out of space within the next 8 hours."
+
+    - alert: InfraFilesystemOutOfDiskSpace
+      expr: (node_filesystem_avail_bytes{job="infra"}  * 100) / node_filesystem_size_bytes{job="infra"} < 3
+      for: 15m
+      labels:
+        severity: page
+      annotations:
+        message: "Infrastructure node is out of disk space! (instance {{ $labels.instance }})"
+        description: "Partition is almost full (< 3% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+
+    - alert: RootFilesystemOutOfDiskSpace
+      expr: (node_filesystem_avail_bytes{mountpoint="/"}  * 100) / node_filesystem_size_bytes{mountpoint="/"} < 3
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        message: "Out of disk space (instance {{ $labels.instance }})"
+        description: "Root partition is almost full (< 10% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+
+    - alert: LocaldiskFilesystemOutOfDiskSpace
+      expr: (node_filesystem_avail_bytes{mountpoint="/localdisk"}  * 100) / node_filesystem_size_bytes{mountpoint="/localdisk"} < 3
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        message: "Out of disk space (instance {{ $labels.instance }})"
+        description: "/localdisk partition is almost full (< 10% left)\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
+
+    - alert: WindowsDiskAlmostFull
+      expr: 100.0 - 100 * ((wmi_logical_disk_free_bytes{} / 1024 / 1024 ) / (wmi_logical_disk_size_bytes{}  / 1024 / 1024)) > 95
+      for: 15m
+      labels:
+        severity: warning
+      annotations:
+        message: "Disk Space Usage (instance {{ $labels.instance }})"
+      description: "Disk Space on Drive is used more than 90%\n  VALUE = {{ $value }}\n  LABELS: {{ $labels }}"
